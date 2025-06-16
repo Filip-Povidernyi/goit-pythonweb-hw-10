@@ -9,8 +9,8 @@ class ContactService:
     def __init__(self, db: AsyncSession):
         self.repository = ContactRepository(db)
 
-    async def get_contacts(self, skip: int = 0, limit: int = 10) -> List[ContactModel]:
-        return await self.repository.get_contacts(skip, limit)
+    async def get_contacts(self, user, skip: int = 0, limit: int = 10) -> List[ContactModel]:
+        return await self.repository.get_contacts(user, skip, limit)
 
     async def get_contact_by_id(self, contact_id: int) -> ContactResponse | None:
         return await self.repository.get_contact_by_id(contact_id)

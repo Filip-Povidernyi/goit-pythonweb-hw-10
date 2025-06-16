@@ -1,8 +1,8 @@
 from datetime import datetime, date
 from typing import Optional
 
-from sqlalchemy import Integer, String, func
-from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase, ForeignKey, relationship
+from sqlalchemy import Integer, String, func, ForeignKey
+from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase, relationship
 from sqlalchemy.sql.sqltypes import DateTime, Date
 
 
@@ -14,7 +14,13 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    login: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(
+        String(50), nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    hashed_password: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now())
+    avatar: Mapped[str] = mapped_column(String(255), nullable=True)
     contacts: Mapped[list["Contact"]] = relationship(
         "Contact",
         back_populates="user",
@@ -22,7 +28,7 @@ class User(Base):
     )
 
     def __repr__(self):
-        return f"User(id={self.id}, login={self.login})"
+        return f"User(id={self.id}, username={self.username})"
 
 
 class Contact(Base):
@@ -37,8 +43,9 @@ class Contact(Base):
     birthday: Mapped[date] = mapped_column(Date, nullable=False)
     additional_info: Mapped[Optional[str]] = mapped_column(
         String(255), nullable=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    user: Mapped["User"] = relationship("User", back_populates="contacts")
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), default=None)
+    user: Mapped[User] = relationship("User", back_populates="contacts")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
