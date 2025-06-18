@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-from src.schemas import UserCreate, Token, User
-from src.services.auth import create_access_token, Hash
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.schemas import TokenRefreshRequest, UserCreate, Token, User
+from src.services.auth import create_access_token, Hash, create_refresh_token, verify_refresh_token
 from src.services.users import UserService
 from src.database.db import get_db
 
@@ -10,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
-async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
+async def register_user(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     user_service = UserService(db)
 
     email_user = await user_service.get_user_by_email(user_data.email)
@@ -34,7 +35,7 @@ async def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=Token)
 async def login_user(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ):
     user_service = UserService(db)
     user = await user_service.get_user_by_username(form_data.username)
@@ -46,4 +47,30 @@ async def login_user(
         )
 
     access_token = await create_access_token(data={"sub": user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = await create_refresh_token(data={"sub": user.username})
+    user.refresh_token = refresh_token
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
+
+
+@router.post("/refresh-token", response_model=Token)
+async def new_token(request: TokenRefreshRequest, db: AsyncSession = Depends(get_db)):
+    user = await verify_refresh_token(request.refresh_token, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+    new_access_token = await create_access_token(data={"sub": user.username})
+    return {
+        "access_token": new_access_token,
+        "refresh_token": request.refresh_token,
+        "token_type": "bearer",
+    }

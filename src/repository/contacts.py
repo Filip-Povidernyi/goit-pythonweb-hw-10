@@ -1,6 +1,7 @@
 from typing import List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.inspection import inspect
 from datetime import datetime, timedelta
 
 from src.database.models import Contact, User
@@ -12,36 +13,40 @@ class ContactRepository:
         self.db = session
 
     async def get_contacts(self, user: User, skip: int = 0, limit: int = 10) -> List[ContactModel]:
-        query = select(Contact).where(Contact.user_id ==
-                                      user.id).offset(skip).limit(limit)
+        query = select(Contact).filter(Contact.user_id ==
+                                       user.id).offset(skip).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
 
-    async def get_contact_by_id(self, contact_id: int, user: User) -> ContactResponse | None:
-        query = select(Contact).where(
-            Contact.id == contact_id, Contact.user_id == user.id)
-        result = await self.db.execute(query)
-        return result.scalar_one_or_none()
+    async def get_contact_by_id(self, contact_id: int, user: User):
+        contact = await self.db.execute(
+            select(Contact).filter(Contact.id ==
+                                   contact_id, Contact.user_id == user.id)
+        )
+        return contact.scalars().first()
 
     async def create_contact(self, contact: ContactModel, user: User) -> ContactModel:
         result = Contact(**contact.model_dump(), user_id=user.id)
         self.db.add(result)
         await self.db.commit()
         await self.db.refresh(result)
-        return await self.get_contact_by_id(result.id, user)
+        return result
 
     async def update_contact(self, contact_id: int, contact_data: ContactUpdate, user: User) -> ContactResponse | None:
-        q_contact = await self.get_contact_by_id(contact_id, user)
-
-        if q_contact:
-            update_data = contact_data.dict(exclude_unset=True)
-            for field, value in update_data.items():
-                setattr(q_contact, field, value)
-
+        result = await self.db.execute(
+            select(Contact).filter(Contact.id ==
+                                   contact_id, Contact.user_id == user.id)
+        )
+        db_contact = result.scalars().first()
+        if db_contact:
+            for key, value in contact_data.model_dump(exclude_unset=True).items():
+                setattr(db_contact, key, value)
             await self.db.commit()
-            await self.db.refresh(q_contact)
+            await self.db.refresh(db_contact)
 
-        return await self.get_contact_by_id(contact_id, user)
+            return db_contact
+
+        return None
 
     async def delete_contact(self, contact_id: int, user: User) -> ContactModel | None:
         q_contact = await self.get_contact_by_id(contact_id, user)
