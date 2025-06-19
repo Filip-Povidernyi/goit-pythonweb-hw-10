@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     MAIL_SMTP_USERNAME: str
     MAIL_SMTP_PASSWORD: str
     MAIL_SMTP_FROM: str
-    MAIL_SMTP_PORT: int
     MAIL_SMTP_SERVER: str
-    BASE_URL: str
     model_config = ConfigDict(
         extra="ignore", env_file=".env", env_file_encoding="utf-8", case_sensitive=True
     )

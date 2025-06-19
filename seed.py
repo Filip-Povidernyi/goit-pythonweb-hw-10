@@ -39,6 +39,7 @@ async def seed_db(user_count: int = 3, contacts_per_user: int = 10):
                 email=email,
                 hashed_password=password,
                 avatar=fake.image_url(),
+                is_verified=True,
             )
             session.add(user)
             await session.flush()

@@ -10,18 +10,18 @@ class UserRepository:
         self.db = session
 
     async def get_user_by_id(self, user_id: int) -> User | None:
-        query = select(User).where(id == user_id)
+        query = select(User).where(User.id == user_id)
         user = await self.db.execute(query)
         return user.scalar_one_or_none()
 
     async def get_user_by_username(self, username: str) -> User | None:
-        query = select(User).where(username == username)
+        query = select(User).where(User.username == username)
         result = await self.db.execute(query)
         user = result.scalars().first()
         return user
 
     async def get_user_by_email(self, email: str) -> User | None:
-        query = select(User).where(email == email)
+        query = select(User).where(User.email == email)
         user = await self.db.execute(query)
         return user.scalar_one_or_none()
 
@@ -34,4 +34,15 @@ class UserRepository:
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
+        return user
+
+    async def verifyed_email(self, email: str):
+        query = select(User).where(User.email == email)
+        user = await self.db.execute(query)
+        user = user.scalar_one_or_none()
+        if user:
+            user.is_verified = True
+            self.db.add(user)
+            await self.db.commit()
+            await self.db.refresh(user)
         return user

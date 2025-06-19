@@ -62,9 +62,16 @@ async def create_refresh_token(data: dict, expires_delta: Optional[float] = None
     return refresh_token
 
 
-def create_email_token(data: dict):
+def create_email_token(data: dict, expires_delta: Optional[int] = None):
 
-    return create_token(data, timedelta(minutes=60), "email")
+    if expires_delta:
+        email_token = create_token(data, expires_delta, "email")
+    else:
+        email_token = create_token(
+            data, timedelta(
+                minutes=60), "email"
+        )
+    return email_token
 
 
 async def get_current_user(
@@ -96,8 +103,8 @@ async def verify_refresh_token(refresh_token: str, db: AsyncSession):
     try:
         payload = jwt.decode(refresh_token, config.JWT_SECRET,
                              algorithms=[config.JWT_ALGORITHM])
-        username: str = payload.get("sub")
-        token_type: str = payload.get("token_type")
+        username = payload.get("sub")
+        token_type = payload.get("token_type")
         if username is None or token_type != "refresh":
             return None
 
@@ -118,11 +125,13 @@ async def get_email_from_token(token: str) -> str:
         payload = jwt.decode(
             token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM]
         )
-        if payload["scope"] != "email":
+        email = payload["sub"]
+        token_type = payload["token_type"]
+        if token_type != "email":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid scope"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
             )
-        return payload["sub"]
+        return email
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid token"
