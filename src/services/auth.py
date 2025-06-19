@@ -29,7 +29,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
 def create_token(
-    data: dict, expires_delta: timedelta, token_type: Literal["access", "refresh"]
+    data: dict, expires_delta: timedelta, token_type: Literal["access", "refresh", "email"]
 ):
     to_encode = data.copy()
     now = datetime.now(UTC)
@@ -60,6 +60,11 @@ async def create_refresh_token(data: dict, expires_delta: Optional[float] = None
                 minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES), "refresh"
         )
     return refresh_token
+
+
+def create_email_token(data: dict):
+
+    return create_token(data, timedelta(minutes=60), "email")
 
 
 async def get_current_user(
@@ -106,3 +111,19 @@ async def verify_refresh_token(refresh_token: str, db: AsyncSession):
         return user
     except JWTError:
         return None
+
+
+async def get_email_from_token(token: str) -> str:
+    try:
+        payload = jwt.decode(
+            token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM]
+        )
+        if payload["scope"] != "email":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid scope"
+            )
+        return payload["sub"]
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid token"
+        )
