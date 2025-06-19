@@ -3,7 +3,7 @@ from typing import Optional
 
 from sqlalchemy import Integer, String, func, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, DeclarativeBase, relationship
-from sqlalchemy.sql.sqltypes import DateTime, Date
+from sqlalchemy.sql.sqltypes import DateTime, Date, Boolean
 
 
 class Base(DeclarativeBase):
@@ -17,6 +17,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(
         String(50), nullable=False, unique=True)
     email: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     hashed_password: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now())
