@@ -8,8 +8,6 @@ COPY . .
 
 RUN poetry config virtualenvs.create false && poetry install --without dev
 
-RUN poetry show
-
 ENV PYTHONPATH=/app
 
 EXPOSE 8000
