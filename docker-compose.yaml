@@ -5,6 +5,8 @@ services:
     image: redis:alpine
     ports:
       - "6379:6379"
+    networks:
+      - app-network
   db:
     image: postgres:14-alpine
     container_name: postgres_server
@@ -42,12 +44,13 @@ services:
     env_file:
       - .env
     volumes:
-      - ./:/app  # Весь проєкт монтується в /app
+      - ./:/app  
       - ./.env:/app/.env
     environment:
       - PYTHONPATH=/app
       - TZ=Europe/Kyiv
     depends_on:
+      - redis
       - db
     command:
       [

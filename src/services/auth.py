@@ -1,6 +1,7 @@
+import redis
+import pickle
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Literal
-
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
@@ -26,6 +27,7 @@ class Hash:
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+r = redis.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, db=0)
 
 
 def create_token(
@@ -62,9 +64,16 @@ async def create_refresh_token(data: dict, expires_delta: Optional[float] = None
     return refresh_token
 
 
-def create_email_token(data: dict):
+def create_email_token(data: dict, expires_delta: Optional[int] = None):
 
-    return create_token(data, timedelta(minutes=60), "email")
+    if expires_delta:
+        email_token = create_token(data, expires_delta, "email")
+    else:
+        email_token = create_token(
+            data, timedelta(
+                minutes=60), "email"
+        )
+    return email_token
 
 
 async def get_current_user(
@@ -85,10 +94,20 @@ async def get_current_user(
             raise credentials_exception
     except JWTError as e:
         raise credentials_exception
-    user_service = UserService(db)
-    user = await user_service.get_user_by_username(username)
+
+    user = r.get(f"user: {username}")
+
+    if user is None:
+        user_service = UserService(db)
+        user = await user_service.get_user_by_username(username)
+        r.set(f"user: {username}", pickle.dumps(user))
+        r.expire(f"user: {username}", timedelta(minutes=15))
+    else:
+        user = pickle.loads(user)
+
     if user is None:
         raise credentials_exception
+
     return user
 
 
@@ -96,8 +115,8 @@ async def verify_refresh_token(refresh_token: str, db: AsyncSession):
     try:
         payload = jwt.decode(refresh_token, config.JWT_SECRET,
                              algorithms=[config.JWT_ALGORITHM])
-        username: str = payload.get("sub")
-        token_type: str = payload.get("token_type")
+        username = payload.get("sub")
+        token_type = payload.get("token_type")
         if username is None or token_type != "refresh":
             return None
 
@@ -118,11 +137,13 @@ async def get_email_from_token(token: str) -> str:
         payload = jwt.decode(
             token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM]
         )
-        if payload["scope"] != "email":
+        email = payload["sub"]
+        token_type = payload["token_type"]
+        if token_type != "email":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid scope"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
             )
-        return payload["sub"]
+        return email
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid token"

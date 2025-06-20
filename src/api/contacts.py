@@ -61,7 +61,6 @@ async def get_birthdays_in_next_days(days: int = 7, db: AsyncSession = Depends(g
 @router.get("/{contact_id}", response_model=ContactResponse)
 async def get_contact_by_id(contact_id: int, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> ContactResponse:
 
-    print(f"user: {user}, type: {type(user)}")
     service = ContactService(db)
     contact = await service.get_contact_by_id(contact_id, user)
 
