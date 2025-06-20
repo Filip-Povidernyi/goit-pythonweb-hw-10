@@ -1,6 +1,7 @@
+import redis
+import pickle
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Literal
-
 from fastapi import Depends, HTTPException, status
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
@@ -26,6 +27,7 @@ class Hash:
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+r = redis.Redis(host=config.REDIS_HOST, port=config.REDIS_PORT, db=0)
 
 
 def create_token(
@@ -92,10 +94,20 @@ async def get_current_user(
             raise credentials_exception
     except JWTError as e:
         raise credentials_exception
-    user_service = UserService(db)
-    user = await user_service.get_user_by_username(username)
+
+    user = r.get(f"user: {username}")
+
+    if user is None:
+        user_service = UserService(db)
+        user = await user_service.get_user_by_username(username)
+        r.set(f"user: {username}", pickle.dumps(user))
+        r.expire(f"user: {username}", timedelta(minutes=15))
+    else:
+        user = pickle.loads(user)
+
     if user is None:
         raise credentials_exception
+
     return user
 
 

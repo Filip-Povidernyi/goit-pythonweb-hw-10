@@ -3,15 +3,15 @@ from fastapi_mail.errors import ConnectionErrors
 from pathlib import Path
 
 from src.services.auth import create_email_token
-# from src.conf.config import config
+from src.conf.config import config
 
 
 conf = ConnectionConfig(
-    MAIL_USERNAME="c1de57a5d35b8e",
-    MAIL_PASSWORD="761a681d5d3355",
-    MAIL_FROM="p.poviderniy@gmail.com",
+    MAIL_USERNAME=config.MAIL_SMTP_USERNAME,
+    MAIL_PASSWORD=config.MAIL_SMTP_PASSWORD,
+    MAIL_FROM=config.MAIL_SMTP_FROM,
     MAIL_PORT=587,
-    MAIL_SERVER="sandbox.smtp.mailtrap.io",
+    MAIL_SERVER=config.MAIL_SMTP_SERVER,
     MAIL_FROM_NAME="Contacts Management API",
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
