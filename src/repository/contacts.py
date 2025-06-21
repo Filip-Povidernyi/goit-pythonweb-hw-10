@@ -61,7 +61,8 @@ class ContactRepository:
         stmt = select(Contact).where(
             (Contact.name.ilike(f'%{query}%')) |
             (Contact.last_name.ilike(f'%{query}%')) |
-            (Contact.email.ilike(f'%{query}%'))
+            (Contact.email.ilike(f'%{query}%')) |
+            (Contact.phone.ilike(f'%{query}%'))
         ).where(Contact.user_id == user.id)
         result = await self.db.execute(stmt)
         contacts = result.scalars().all()
